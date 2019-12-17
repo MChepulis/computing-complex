@@ -13,7 +13,7 @@ is_need_plot(4) = false;    %график плоскостей сечения токамака
 is_need_plot(5) = false;    %график лучей для 16-го сечения
 is_need_plot(6) = false;    %графики лучей и пересечений для всех плоскостей сечений
 is_need_plot(7) = false;    %график плоскости детектора
-is_need_plot(8) = true;    %построение матрицы длинн хорд по всем плоскостям
+is_need_plot(8) = false;    %построение матрицы длинн хорд по всем плоскостям
 is_need_plot(9) = false;    %легенда для графиков лучей и пересечений для всех плоскостей сечений
 %--------------      lab 5      --------------
 % для 5 лабы нужен is_need_plot(8)= true
@@ -62,6 +62,8 @@ if(is_need_plot(1))
     axis equal
     title("separatrix")
     legend("separatrix", "magnetic axis")
+    xlabel("R")
+    ylabel("Z")
 % вывод индексы точек на графике
 %     for i = 1:NBDRY
 %         text(RBDRY(i), ZBDRY(i), num2str(i))
@@ -93,6 +95,8 @@ if(is_need_plot(2))
         ELEMENT.draw(elements(i), "b", i);
     end
     legend("grid");
+    xlabel("R")
+    ylabel("Z")
 end
 
 %H - расстояние от цетра токомака до плоскости сечения
@@ -138,6 +142,8 @@ if(is_need_plot(3))
     end
     title(strcat("grid Cut H = ", num2str(H)));
     legend("grid");
+    xlabel("Y'")
+    ylabel("Z")
 end
 %%
 %% магические константа от преподавателя
@@ -220,6 +226,9 @@ if(is_need_plot(4))
     
     %xlim([-0.2, 0.2])
     %ylim([-0.8, -0.5])
+    title("Плоскости сечения токамака")
+    xlabel("X")
+    ylabel("Y")
 end
 %%
 %посроение графика лучей для 16-го сечения
@@ -231,6 +240,8 @@ if(is_need_plot(5))
     axis equal
     H = DETECTOR.get_plane(detector, cut_ind);
     title(strcat("grid Cut H = ", num2str(H)))
+    xlabel("Y'")
+    ylabel("Z")
 
     h = length(elements);
     cut_elements = [];
@@ -288,6 +299,8 @@ if(is_need_plot(6))
         axis equal
         H = DETECTOR.get_plane(detector, cut_ind);
         title(strcat("grid Cut H = ", num2str(H)));
+        xlabel("Y'")
+        ylabel("Z")
         element_num = length(elements);
         cut_elements = [];
         for i = 1:element_num
@@ -332,6 +345,9 @@ if(is_need_plot(7))
     figure()
 	grid on
     hold on
+    title("плоскость детектора")
+    xlabel("X")
+    ylabel("Y")
 	%axis equal
     spd_sizes = [0.88, 1.23] * 1e-3;
 
@@ -739,7 +755,7 @@ if(is_need_plot(19))
     figure();
     hold on;
     grid on;
-    plot(x_axis, x, 'bo');
+    plot(x_axis, x, 'o');
     title("Значение X");
     xlabel("i")
     ylabel('x');
@@ -751,7 +767,7 @@ if(is_need_plot(20))
     figure();
     hold on;
     grid on;
-    plot(x_axis, w, 'bo');
+    plot(x_axis, w, 'o');
     title("Значение W");
     xlabel("i")
     ylabel('w');
