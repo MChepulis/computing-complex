@@ -728,7 +728,7 @@ M = sizes_A(2);
 % подготавливаем материал для ЗЛП
 % создаём столбец где первые num_of_row нулей, далее num__of_col едениц
 e = [zeros(M, 1); ones(N, 1)];
-rad = ones(1, N);
+rad = (sup_b - inf_b)/2;
 diag_rad_b = diag(rad);
 C = [A, -diag_rad_b
     -A, -diag_rad_b];
