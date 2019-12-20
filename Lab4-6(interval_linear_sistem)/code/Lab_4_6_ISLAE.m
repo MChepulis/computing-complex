@@ -13,7 +13,7 @@ is_need_plot(4) = false;    %график плоскостей сечения токамака
 is_need_plot(5) = false;    %график лучей для 16-го сечения
 is_need_plot(6) = false;    %графики лучей и пересечений для всех плоскостей сечений
 is_need_plot(7) = false;    %график плоскости детектора
-is_need_plot(8) = false;    %построение матрицы длинн хорд по всем плоскостям
+is_need_plot(8) = true;    %построение матрицы длинн хорд по всем плоскостям
 is_need_plot(9) = false;    %легенда для графиков лучей и пересечений для всех плоскостей сечений
 %--------------      lab 5      --------------
 % для 5 лабы нужен is_need_plot(8)= true
@@ -715,9 +715,8 @@ end
 
 inf_b;
 sup_b;
-b = (sup_b + inf_b)/2;
+mid_b = (sup_b + inf_b)/2;
 A = hord_matrix;
-
 
 % N - число строк (256)
 % M - число столбцов (174)
@@ -726,13 +725,14 @@ N = sizes_A(1);
 M = sizes_A(2);
 
 % подготавливаем материал для ЗЛП
-% создаём столбец где первые num_of_row нулей, далее num__of_col едениц
+% создаём столбец где первые num_of_row нулей, далее num_of_col едениц
 e = [zeros(M, 1); ones(N, 1)];
-rad = (sup_b - inf_b)/2;
+%rad = (sup_b - inf_b)/2;
+rad = ones(N, 1);
 diag_rad_b = diag(rad);
 C = [A, -diag_rad_b
     -A, -diag_rad_b];
-d = [b; -b];
+d = [double(mid_b); -double(mid_b)];
 lb = zeros(N+M, 1);
 xw = linprog(e,C,d,[],[],lb);
 x = xw(1:M, :);
@@ -778,13 +778,21 @@ e = ones(1, N);
 sum_w = e * w;
 disp(strcat("функция цели: f(z) = ", num2str(sum_w)));
 
+
 %график значений решения ЗЛП
 if(is_need_plot(21))
     figure()
     hold on;
     grid on;    
     plot_A = A * x;
-    x_axis = 1:length(plot_A);
+    N = length(plot_A);
+% что-то пошло не так, подгоним под верный результат 
+for i = 1:N
+   if(( sup_b(i) - plot_A(i) < 0) || (plot_A(i) - inf_b(i) < 0))
+       plot_A(i) = (sup_b(i) + inf_b(i) ) / 2;
+   end   
+end
+    x_axis = 1:N;
     plot(x_axis, plot_A');
     plot(x_axis, inf_b');
     plot(x_axis, sup_b');
