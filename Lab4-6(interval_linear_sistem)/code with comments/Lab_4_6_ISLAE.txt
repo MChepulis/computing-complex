@@ -1,0 +1,366 @@
+%%
+clear all
+%close all
+
+is_need_plot(1) = false;    % Обзор интегральной светимости
+is_need_plot(2) = false;    % Отображение всего временного окна
+is_need_plot(3) = true;    % График сглаженного b
+is_need_plot(4) = true;    % График b_res = b - b_smothed
+is_need_plot(5) = true;    % График усечённого b_res
+is_need_plot(6) = true;    % Гистограмма b_res
+is_need_plot(7) = true;    % Гистограмма усечённого b_res
+is_need_plot(8) = true;    %
+is_need_plot(9) = true;    %
+
+
+input_file_index = 37000;
+input_file_name = strcat("data\", num2str(37000), "_SPD16x16.mat");
+input_time_period = 000155;
+plot_dir = "plots";
+
+%%
+%матрица построена в is_need_plot(8)
+%A = hord_matrix;
+input_data = load(input_file_name);
+sign_bb = input_data.sign_bb(:, :, :);
+cnt_meas = size(sign_bb, 3);
+tp = cell2mat(input_data.Data(1, 2)) * 1e-3;% - шаг по времени
+tz = cell2mat(input_data.Data(2, 2));
+t_start = tz;
+t_end = t_start + (cnt_meas - 1) * tp;
+t_i = t_start:tp:t_end;
+
+
+%%
+%обзор интегральной светимости
+if(is_need_plot(1))
+    t_cons_start = 125;
+    t_cons_end = 190;
+
+    dt_cons = 1;
+    start_efit_time_i = t_cons_start:dt_cons:t_cons_end;
+
+    B = [];
+    for start_efit_time1 = t_cons_start:t_cons_end
+        ind = find(abs(t_i - start_efit_time1) < tp/2);
+        b = [];
+        for i = 16:-1:1
+            b = [b; sign_bb(16:-1:1, i, ind(1))];
+        end
+        b = double(b);
+        Bnew = sum(b(:));
+        B=[B, Bnew];
+    end
+    figure()
+    plot([t_cons_start:t_cons_end],B);
+    title_str_name = strcat("37000 SPD16x16.mat", " Sum b");
+    title(title_str_name);
+    xlabel('start efit time');
+    figure_name_out = strcat(plot_dir, "/", title_str_name,'.png');
+    print('-dpng', '-r300', figure_name_out), pwd;
+
+end   
+if(is_need_plot(2))
+    %Отображение всего временного окна
+    start_efit_time = 125;
+    end_efit_time = 190;
+  
+    [sum_B_low, sum_B_up] = Low_Up(start_efit_time, end_efit_time, t_i, tp, t_start, sign_bb);
+    x_axis = start_efit_time:(end_efit_time - start_efit_time) /( length(sum_B_up)  - 1):end_efit_time;
+    y_axis = sum_B_low + sum_B_up;
+
+    figure()
+    grid on
+    hold on
+    plot(x_axis, y_axis);
+    title(strcat(" Sum b :  t = [", num2str(start_efit_time), ", ", num2str(end_efit_time), "]"));
+    xlabel('start efit time');
+    legend('b');
+    title_str_name = strcat("37000 SPD16x16.mat", " b");
+    figure_name_out = strcat(plot_dir, "/", title_str_name,'.png');
+    print('-dpng', '-r300', figure_name_out), pwd;
+end
+
+
+start_efit_time = 125;
+end_efit_time = 190;
+smooth_koef = 200;  % 625 точек в 1 мс
+[sum_B_low, sum_B_up] = Low_Up(start_efit_time, end_efit_time, t_i, tp, t_start, sign_bb);
+b_arr = sum_B_low + sum_B_up;  
+time_axis = start_efit_time:(end_efit_time - start_efit_time) /( length(sum_B_up)  - 1):end_efit_time;
+
+%b_smoothed = Exp_Smooth(b_arr, smooth_koef);
+b_smoothed = Med_Smooth(b_arr, smooth_koef);
+b_res = b_arr - b_smoothed;
+
+%tmp_b_red = b_red;
+%tmp_x_axis = start_efit_time:(end_efit_time - start_efit_time) /( length(sum_B_up)  - 1):end_efit_time;
+[b_res_trunc, trunc_ind] = RedusedByBarier(b_res, -2000, 2000);
+time_axis_trunc = time_axis(trunc_ind);
+
+% график сглаженного b
+if(is_need_plot(3)) 
+    figure()
+    grid on
+    hold on
+    x_axis = time_axis;
+    y_axis = b_smoothed;
+    plot(x_axis, y_axis);
+    title(strcat(" smothed b :  t = [", num2str(start_efit_time), ", ", num2str(end_efit_time), "]", ", s-koef = ",num2str(smooth_koef)));
+    xlabel('start efit time');
+    legend("smothed b");
+    figure_name_out = strcat(plot_dir, "/smothed_b(", num2str(start_efit_time), ", ", num2str(end_efit_time), ", ", num2str(smooth_koef), ").png");
+    print('-dpng', '-r300', figure_name_out), pwd;
+end
+
+% график b - b_smothed
+if(is_need_plot(4))
+    figure()
+    grid on
+    hold on
+    y_axis = b_res;
+    x_axis = time_axis;
+    plot(x_axis, y_axis);
+    title(strcat(num2str(smooth_koef), ") b - smoth_b :   t = [", num2str(start_efit_time), ", ", num2str(end_efit_time), "]"));
+    xlabel('start efit time');
+    legend("b - smoth_b"); 
+    figure_name_out = strcat(plot_dir, "/b_residual(", num2str(start_efit_time), ", ", num2str(end_efit_time), ", ", num2str(smooth_koef), ").png");
+    print('-dpng', '-r300', figure_name_out), pwd;
+end
+
+% график trunc b - b_smothed
+if(is_need_plot(5))   
+    figure()
+    grid on
+    hold on
+    y_axis = b_res_trunc;
+    x_axis = time_axis_trunc;
+    plot(x_axis, y_axis);
+    title(strcat(num2str(smooth_koef), ") trunc b - smoth_b :   t = [", num2str(start_efit_time), ", ", num2str(end_efit_time), "]"));
+    xlabel('start efit time');
+    legend("b - smoth_b"); 
+    figure_name_out = strcat(plot_dir, "/trunc_b_residual(", num2str(start_efit_time), ", ", num2str(end_efit_time), ", ", num2str(smooth_koef), ").png");
+    print('-dpng', '-r300', figure_name_out), pwd; 
+end
+
+
+% гистограмма b_res
+if(is_need_plot(6))
+    figure()
+    grid on
+    hold on
+    x_axis = b_res;
+    histogram(x_axis);
+    title(strcat(num2str(smooth_koef), ") b - smoth_b :   t = [", num2str(start_efit_time), ", ", num2str(end_efit_time), "]"));
+    xlabel('start efit time');
+    legend("b - smoth_b"); 
+    ylim([0, 100])
+    figure_name_out = strcat(plot_dir, "/hist_b_residual(", num2str(start_efit_time), ", ", num2str(end_efit_time), ", ", num2str(smooth_koef), ").png");
+    print('-dpng', '-r300', figure_name_out), pwd;
+end
+% гистограмма b_res_clip
+if(is_need_plot(7))    
+    figure()
+    grid on
+    hold on
+    x_axis = b_res_trunc;
+    histogram(x_axis);
+    title(strcat(num2str(smooth_koef), ") trunc_b - smoth_b :   t = [", num2str(start_efit_time), ", ", num2str(end_efit_time), "]"));
+    xlabel('start efit time');
+    legend("b - smoth_b"); 
+    ylim([0, 100])
+    figure_name_out = strcat(plot_dir, "/hist_trunc_b_residual(", num2str(start_efit_time), ", ", num2str(end_efit_time), ", ", num2str(smooth_koef), ").png");
+    print('-dpng', '-r300', figure_name_out), pwd;
+end
+
+
+
+for i = 1:6
+%[res, res_for_ind] = GetPeriod(b_res_trunc, i);
+[res, res_for_ind] = GetTimedPeriod(b_res_trunc, time_axis_trunc, i);
+x_axis = time_axis_trunc;
+
+freq = 2./res_for_ind;
+freq_smooth = Med_Smooth(freq, 100);
+
+
+figure()
+grid on
+hold on
+bar(res)
+%title("period clear");
+title(strcat("period clear : ", num2str(i)));
+figure_name_out = strcat(plot_dir, "/per/period clear_", num2str(i), ".png");
+print('-dpng', '-r300', figure_name_out), pwd;
+
+
+figure()
+grid on
+hold on
+bar(x_axis, res_for_ind)
+%title(strcat(num2str(smooth_koef), ") b - smoth_b :   t = [", num2str(start_efit_time), ", ", num2str(end_efit_time), "]"));
+title(strcat("period : ", num2str(i)));
+figure_name_out = strcat(plot_dir, "/per/period_", num2str(i), ".png");
+print('-dpng', '-r300', figure_name_out), pwd;
+
+
+figure()
+grid on
+hold on
+bar(x_axis, 2./res_for_ind)
+title(strcat("freq : ", num2str(i)));
+figure_name_out = strcat(plot_dir, "/per/freq_", num2str(i), ".png");
+print('-dpng', '-r300', figure_name_out), pwd;
+
+figure()
+grid on
+hold on
+y_axis = freq_smooth;
+bar(x_axis, y_axis)
+title(strcat("smooth freq : ", num2str(i)));
+figure_name_out = strcat(plot_dir, "/per/smooth freq_", num2str(i), ".png");
+print('-dpng', '-r300', figure_name_out), pwd;
+
+figure()
+grid on
+hold on
+histogram(freq_smooth);
+title(strcat("hist smooth freq : ", num2str(i)));
+xlabel('start efit time');
+legend("smooth freq"); 
+ylim([0, 100])
+figure_name_out = strcat(plot_dir, "/per/hist_smooth freq_", num2str(i), ".png");
+print('-dpng', '-r300', figure_name_out), pwd;
+
+tmp_freq = freq_smooth;
+tmp_time = time_axis_trunc; 
+
+G = length(time_axis);
+K = length(tmp_time);
+k = 1;
+result_freq = zeros(1, G);
+for j = 1: G
+    if (k <= K)
+        if(tmp_time(k) == time_axis(j))
+            result_freq(j) = tmp_freq(k);
+            k = k + 1;
+        else
+            result_freq(j) = 0;
+        end
+    end
+end
+ 
+tmp_freq = result_freq; 
+tmp_time = time_axis;
+
+for j = 1: 6
+    freq_med = median(tmp_freq);
+
+    [freq_trunc, frec_trunc_ind] = RedusedByBarier(tmp_freq, -1, freq_med);
+    freq_trunc_time_axis = tmp_time(frec_trunc_ind);
+
+    freq_trunc = Med_Smooth(freq_trunc, 100);
+
+    tmp_freq = freq_trunc;
+    tmp_time = freq_trunc_time_axis;
+    if(length(tmp_freq) == 0)
+        continue;
+    end
+
+    
+    figure()
+    grid on
+    hold on
+    y_axis = freq_trunc;
+    x_axis = freq_trunc_time_axis;
+    bar(x_axis, y_axis)
+    title(strcat("trunc smooth freq : ", num2str(i), ", ", num2str(j)));
+    figure_name_out = strcat(plot_dir, "/per/trunc smooth freq_", num2str(i), ", ", num2str(j), ".png");
+    print('-dpng', '-r300', figure_name_out), pwd;
+
+
+    figure()
+    grid on
+    hold on
+    histogram(freq_trunc);
+    title(strcat("hist smooth freq : ", num2str(i), ", ", num2str(j)));
+    xlabel('start efit time');
+    legend("smooth freq"); 
+    ylim([0, 100])
+    figure_name_out = strcat(plot_dir, "/per/hist_trunc smooth freq_", num2str(i), ", ", num2str(j), ".png");
+    print('-dpng', '-r300', figure_name_out), pwd;
+end
+end
+
+
+
+
+% clear all
+% %  полезная ссылка:
+% %  http://geometry.karazin.ua/resources/documents/20140425135316_4bf475913a5.pdf
+% syms x y z l l1 j;
+% f = @(x) (x^2 + x + 1);
+% 
+% y = x^2 + x + x
+% z = diff(y)  % дифференцирование
+% z = z + 2*x + 6*x + 4 + x^2 / 12
+% 
+% simplify(z)     %упрощение
+% br = str2sym("(x+5)*((x+1)^2 + x + 8)")
+% simplify(br) %упрощает (сокращение общего множителя)
+% collect(br) %раскрывает скобки
+% expe = expand(br)      %раскрывает скобки
+% factor(expe)        % разложение на множители
+% 
+% complex = str2sym("log(tan(log(atan(x))))")
+% diff(complex)
+% simplify(diff(complex))
+% collect(diff(complex))
+% expand(diff(complex))
+% 
+% pretty(diff(complex))% вывод в "красивом" виде
+% 
+% 
+% x = sym('x', 'real')    % предаоложение о том, что переменная int
+% y = sym('y', 'positive') % предаоложение о том, что переменная положительна
+% z = sym('z', 'rational') % предаоложение о том, что переменная real
+% t = sym('t', {'positive', ' integer'})
+% assumptions(x)      % узнать предположения
+% assume([x, y, z], 'clear') % очистить предположения
+% assumptions(x)
+% r = sym(pi)
+% vpa(pi, 200)        % нахождения значения числа с заданной точность
+% double(r)
+% 
+% 
+% f = factor(z)  %представление в виде полинома 
+% f1 = subs(z, x, 5) %заменяем все x на 3
+% f1 = subs(z, x, '5+y') %заменяем все x на 5+y
+% f1 = subs(z, '5+y', x) %заменяем все 5+y на x
+% f2 = double(f1) % из символьного в числовое
+% 
+% z = (x^2 - y^2)/(x^2 + y^2)
+% z = str2sym("sqrt(x + 23132 * 1321)")
+% eye(3)
+% 
+% h = int(z) % интегрирование
+% h = int(z, 0, 1) % интегрирование
+% 
+% l = "log( x - j - k )"
+% 
+% l = "ln(x)"
+% f1 = subs(l, 'x', 5) %заменяем все x на 3
+% 
+% 
+% l1 = l + "+" + l
+% f1 = subs(l, j, 5) %заменяем все x на 3
+
+
+
+
+
+
+
+
+
+
